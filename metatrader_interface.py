@@ -155,3 +155,51 @@ def convert_to_mt5_timeframe(timeframe: str):
         return MetaTrader5.TIMEFRAME_MN1
     else:
         raise Exception("The timeframe is not supported")
+
+
+# Function to place an order on MetaTrader 5
+def place_order(symbol, signal):
+    """
+    Places a market order based on a signal dict with decision, entry, and exit.
+    Stop loss is set at 10% against the position.
+    """
+    decision = signal['decision']
+    if decision == 'hold':
+        return None
+
+    symbol_info = MetaTrader5.symbol_info(symbol)
+    if symbol_info is None:
+        raise Exception(f"Symbol {symbol} not found")
+    if not symbol_info.visible:
+        MetaTrader5.symbol_select(symbol, True)
+
+    lot = 0.1
+    price = MetaTrader5.symbol_info_tick(symbol).ask if decision == 'buy' else MetaTrader5.symbol_info_tick(symbol).bid
+    take_profit = signal['exit']
+
+    if decision == 'buy':
+        order_type = MetaTrader5.ORDER_TYPE_BUY
+        stop_loss = price * 0.90  # 10% below entry
+    else:
+        order_type = MetaTrader5.ORDER_TYPE_SELL
+        stop_loss = price * 1.10  # 10% above entry
+
+    request = {
+        "action": MetaTrader5.TRADE_ACTION_DEAL,
+        "symbol": symbol,
+        "volume": lot,
+        "type": order_type,
+        "price": price,
+        "sl": round(stop_loss, symbol_info.digits),
+        "tp": round(take_profit, symbol_info.digits),
+        "deviation": 20,
+        "magic": 234000,
+        "comment": "trading-bot",
+        "type_time": MetaTrader5.ORDER_TIME_GTC,
+        "type_filling": MetaTrader5.ORDER_FILLING_IOC,
+    }
+
+    result = MetaTrader5.order_send(request)
+    if result.retcode != MetaTrader5.TRADE_RETCODE_DONE:
+        raise Exception(f"Order failed: {result.retcode} — {result.comment}")
+    return result

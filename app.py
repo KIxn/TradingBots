@@ -153,6 +153,8 @@ if __name__ == '__main__':
         streamlit.session_state.strategies = []
     if "running" not in streamlit.session_state:
         streamlit.session_state.running = False
+    if "make_trades" not in streamlit.session_state:
+        streamlit.session_state.make_trades = None
     # Create the header
     streamlit.header('Terminal')
     # Create the header container
@@ -223,6 +225,7 @@ if __name__ == '__main__':
             streamlit.session_state['loop_symbol'] = streamlit.session_state['symbol']
             streamlit.session_state['loop_timeframe'] = streamlit.session_state['timeframe']
             streamlit.session_state['loop_strategy'] = streamlit.session_state['strategy']
+            streamlit.session_state['loop_make_trades'] = streamlit.session_state.get('make_trades')
             streamlit.rerun()
     if col_stop.button('⏹ Stop', use_container_width=True, disabled=not streamlit.session_state.running):
         streamlit.session_state.running = False
@@ -246,14 +249,27 @@ if __name__ == '__main__':
                     status.write(f"✅ Signal: **{decision}** | Entry: {data.get('entry')} | Exit: {data.get('exit')}")
                     status.update(label=f"Iteration {iteration} — {decision}", state="complete")
                 live_result.write(data)
+                # Place order if Make Trades is Yes and signal is not hold
+                copilot_container.info(f"🔍 Debug — make_trades: `{streamlit.session_state.get('loop_make_trades')}` | decision: `{data.get('decision')}`")
+                if streamlit.session_state.get('loop_make_trades') == 'Yes' and data.get('decision') != 'hold':
+                    try:
+                        order_result = metatrader_interface.place_order(symbol, data)
+                        copilot_container.success(f"✅ Order placed: {data['decision'].upper()} {symbol} | Ticket: {order_result.order}")
+                    except Exception as order_err:
+                        import traceback
+                        copilot_container.error(f"Order failed: {order_err}")
+                        copilot_container.code(traceback.format_exc())
+                elif data.get('decision') == 'hold':
+                    copilot_container.info("⏸ Signal is HOLD — no order placed")
+                else:
+                    copilot_container.warning("⚠️ Make Trades is not set to Yes — no order placed")
             except Exception as e:
                 import traceback
                 live_status.error(f"Error on iteration {iteration}: {e}")
                 live_result.code(traceback.format_exc())
                 streamlit.session_state.running = False
                 break
-            time.sleep(streamlit.session_state.get('interval', 60))
-    # Add an option to use a settings file
+            time.sleep(streamlit.session_state.get('interval', 60))    # Add an option to use a settings file
     settings_file = settings_choice.selectbox(
         'Use Settings File',
         ['Yes', 'No'],
@@ -293,7 +309,8 @@ if __name__ == '__main__':
         'Make Trades', 
         ['Yes', 'No'],
         index=None,
-        placeholder='Select an option'
+        placeholder='Select an option',
+        key='make_trades'
     )
     
     
