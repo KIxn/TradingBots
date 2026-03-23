@@ -296,22 +296,7 @@ Run the bot and select "Test Strategy" to see it in action.
 - [ ] Coinbase API
 - [ ] Interactive Brokers
 
-## Support & Resources
-
-### Documentation
-- **TODO** MT5 documentation, python docs
-- [YouTube Channel](https://youtube.com/@tradeoxy) - Video tutorials
-- [Medium Articles](https://medium.com/@appnologyjames) - Technical deep dives
-
-### Community
-- [Discord Server](https://discord.com/channels/1143837842745864192/1143837843274342432) - Live support and discussion
-- GitHub Issues - Bug reports and feature requests
-
-### Educational Content
-1. **Building Development Environment** - Setup with TA-Lib and AI tools
-2. **Data Retrieval** - Getting market data from MetaTrader
-3. **Technical Indicators** - Adding RSI, MACD, Bollinger Bands
-4. **Strategy Development** - Creating and testing custom strategies
+---
 
 ## License
 
