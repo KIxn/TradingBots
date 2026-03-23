@@ -48,8 +48,8 @@ This trading bot provides a complete algorithmic trading solution with:
 
 ### Prerequisites
 
-- Python 3.10+
-- MetaTrader 5 installed (for MetaTrader integration)
+- [Python 3.10+](https://www.python.org/downloads/)
+- [MetaTrader 5](https://www.metatrader5.com/en/download) installed (for MetaTrader integration)
 - Discord bot token (optional, for alerts)
 
 ### Quick Start
