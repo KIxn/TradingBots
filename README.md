@@ -52,6 +52,32 @@ This trading bot provides a complete algorithmic trading solution with:
 - [MetaTrader 5](https://www.metatrader5.com/en/download) installed (for MetaTrader integration)
 - Discord bot token (optional, for alerts)
 
+### macOS Prerequisites
+
+MetaTrader 5 requires Windows, so on macOS you need to run it via [Wine](https://www.winehq.org/).
+
+1. **Install Wine** via [Homebrew](https://brew.sh/):
+   ```bash
+   brew install --cask wine-stable
+   ```
+
+2. **Install Python for Windows** through Wine:
+   ```bash
+   wine msiexec /i python-3.10.x.msi
+   ```
+   Download the Windows installer from [python.org](https://www.python.org/downloads/windows/).
+
+3. **Install MetaTrader 5** through Wine:
+   ```bash
+   wine mt5setup.exe
+   ```
+
+4. **If macOS blocks Wine** due to validation errors, run:
+   ```bash
+   sudo spctl --master-disable
+   ```
+   This disables Gatekeeper to allow unverified apps to run.
+
 ### Quick Start
 
 1. **Clone and install**:

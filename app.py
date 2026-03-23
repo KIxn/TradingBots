@@ -5,6 +5,7 @@ import dotenv
 import os
 import helper_functions
 import strategy_router
+import time
 
 
 
@@ -41,18 +42,26 @@ def get_data():
     if strategy is None:
         copilot_container.error("Please select a strategy")
         return False
-    # Run the get_data function from the helper_functions.py file
+    # Run the strategy with live status feedback
     try:
-        data = strategy_router.strategy_router(
-            platform=platform,
-            symbol=symbol,
-            timeframe=timeframe,
-            strategy_name=strategy
-        )
-        # Write the dataframe to the copilot container
+        with copilot_container.status("Running strategy...", expanded=True) as status:
+            status.write(f"📡 Connecting to {platform}...")
+            status.write(f"📊 Fetching {symbol} data on {timeframe} timeframe...")
+            status.write(f"🧠 Running strategy: {strategy}...")
+            data = strategy_router.strategy_router(
+                platform=platform,
+                symbol=symbol,
+                timeframe=timeframe,
+                strategy_name=strategy
+            )
+            decision = data.get('decision', 'unknown').upper()
+            status.write(f"✅ Signal: **{decision}** | Entry: {data.get('entry')} | Exit: {data.get('exit')}")
+            status.update(label=f"Strategy complete — {decision}", state="complete")
         copilot_container.write(data)
     except Exception as exception:
+        import traceback
         copilot_container.error(f"An exception occurred when getting data: {exception}")
+        copilot_container.code(traceback.format_exc())
         return False
     return True
 
@@ -142,8 +151,8 @@ if __name__ == '__main__':
         streamlit.session_state.timeframes = []
     if "strategies" not in streamlit.session_state:
         streamlit.session_state.strategies = []
-    if "strategy" not in streamlit.session_state:
-        streamlit.session_state.strategy = None
+    if "running" not in streamlit.session_state:
+        streamlit.session_state.running = False
     # Create the header
     streamlit.header('Terminal')
     # Create the header container
@@ -191,6 +200,59 @@ if __name__ == '__main__':
     )
     # Add a button to the Copilot container
     copilot_container.button('Get Data', on_click=get_data, use_container_width=True)
+
+    # Button colour styling
+    streamlit.markdown("""
+        <style>
+        div[data-testid="column"]:nth-of-type(1) button { background-color: #28a745; color: white; }
+        div[data-testid="column"]:nth-of-type(2) button { background-color: #dc3545; color: white; }
+        div[data-testid="column"]:nth-of-type(1) button:disabled,
+        div[data-testid="column"]:nth-of-type(2) button:disabled { opacity: 0.4; cursor: not-allowed; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Start/Stop trading loop buttons
+    col_start, col_stop, col_interval = copilot_container.columns([2, 2, 1])
+    interval = col_interval.number_input('Interval (seconds)', min_value=1, value=60, step=1, key='interval')
+    if col_start.button('▶ Start Trading with Strategy', use_container_width=True, disabled=streamlit.session_state.running):
+        if not streamlit.session_state['platform'] or not streamlit.session_state['symbol'] or not streamlit.session_state['timeframe'] or not streamlit.session_state['strategy']:
+            copilot_container.error("Please select a platform, symbol, timeframe, and strategy before starting.")
+        else:
+            streamlit.session_state.running = True
+            streamlit.session_state['loop_platform'] = 'MetaTrader5' if streamlit.session_state['platform'] == 'MetaTrader 5' else streamlit.session_state['platform']
+            streamlit.session_state['loop_symbol'] = streamlit.session_state['symbol']
+            streamlit.session_state['loop_timeframe'] = streamlit.session_state['timeframe']
+            streamlit.session_state['loop_strategy'] = streamlit.session_state['strategy']
+            streamlit.rerun()
+    if col_stop.button('⏹ Stop', use_container_width=True, disabled=not streamlit.session_state.running):
+        streamlit.session_state.running = False
+
+    # Live trading loop
+    if streamlit.session_state.running:
+        live_status = copilot_container.empty()
+        live_result = copilot_container.empty()
+        platform = streamlit.session_state['loop_platform']
+        symbol = streamlit.session_state['loop_symbol']
+        timeframe = streamlit.session_state['loop_timeframe']
+        strategy = streamlit.session_state['loop_strategy']
+        iteration = 0
+        while streamlit.session_state.running:
+            iteration += 1
+            try:
+                with live_status.status(f"🔄 Running iteration {iteration}...", expanded=True) as status:
+                    status.write(f"📡 Fetching {symbol} on {timeframe}...")
+                    data = strategy_router.strategy_router(platform=platform, symbol=symbol, timeframe=timeframe, strategy_name=strategy)
+                    decision = data.get('decision', 'unknown').upper()
+                    status.write(f"✅ Signal: **{decision}** | Entry: {data.get('entry')} | Exit: {data.get('exit')}")
+                    status.update(label=f"Iteration {iteration} — {decision}", state="complete")
+                live_result.write(data)
+            except Exception as e:
+                import traceback
+                live_status.error(f"Error on iteration {iteration}: {e}")
+                live_result.code(traceback.format_exc())
+                streamlit.session_state.running = False
+                break
+            time.sleep(streamlit.session_state.get('interval', 60))
     # Add an option to use a settings file
     settings_file = settings_choice.selectbox(
         'Use Settings File',

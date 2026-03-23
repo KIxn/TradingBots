@@ -36,12 +36,12 @@ def strategy_router(platform, symbol, timeframe, strategy_name):
         raise ValueError('Invalid strategy name')
     # If the signal['decision'] is buy, return a buy signal
     if signal['decision'] == 'buy':
-        return 'buy'
+        return signal
     # If the signal['decision'] is sell, return a sell signal
     elif signal['decision'] == 'sell':
-        return 'sell'
+        return signal
     # If the signal['decision'] is hold, return a hold signal
     elif signal['decision'] == 'hold':
-        return 'hold'
+        return signal
     else:
         raise ValueError('Invalid signal decision')
