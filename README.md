@@ -101,7 +101,7 @@ MetaTrader 5 requires Windows, so on macOS you need to run it via [Wine](https:/
 
 3. **Run the application**:
    ```bash
-   streamlit run app.py
+   python -m streamlit run app.py
    ```
 
 4. **Open browser** to `http://localhost:8501`
