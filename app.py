@@ -48,7 +48,7 @@ def get_platform_info():
 
 
 if __name__ == '__main__':
-    streamlit.set_page_config(page_title='Terminal', page_icon='📈', layout='wide')
+    streamlit.set_page_config(page_title='The Trading Bot Arena', page_icon='📈', layout='wide')
 
     # Session state init
     for key, default in [
@@ -61,7 +61,8 @@ if __name__ == '__main__':
             streamlit.session_state[key] = default
 
     # ── Header ──────────────────────────────────────────────────────────────
-    streamlit.header('Terminal')
+    streamlit.title("The Trading Bot Arena")
+    streamlit.header('Platform Setup')
     header_container = streamlit.container()
     settings_choice, alert_listener, trading_platform, settings = header_container.columns(4)
 
