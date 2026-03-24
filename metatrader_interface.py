@@ -8,6 +8,7 @@ import datetime
 # Load environment variables
 dotenv.load_dotenv()
 
+
 # Function to start MetaTrader 5
 def start_metatrader(mt5_username=None, mt5_password=None, mt5_server=None, mt5_filepath=None):
     """
@@ -39,22 +40,13 @@ def start_metatrader(mt5_username=None, mt5_password=None, mt5_server=None, mt5_
     terminal64filepath = str(terminal64filepath)
     # Try to start MetaTrader 5
     try:
-        mt5_start = MetaTrader5.initialize(
-            login=uname,
-            password=pword,
-            server=server,
-            path=terminal64filepath
-        )
+        mt5_start = MetaTrader5.initialize(login=uname, password=pword, server=server, path=terminal64filepath)
     except Exception as exception:
         raise Exception(f"An exception occurred when starting MetaTrader 5: {exception}")
     # If successful, log in to MetaTrader 5
     if mt5_start:
         try:
-            login = MetaTrader5.login(
-                login=uname,
-                password=pword,
-                server=server
-            )
+            login = MetaTrader5.login(login=uname, password=pword, server=server)
         except Exception as exception:
             raise exception
         # If successful, return True
@@ -102,7 +94,7 @@ def get_historic_data(symbol, timeframe, count=10):
     # Convert the data to a DataFrame
     data = pandas.DataFrame(data)
     # Pass the data to the data normalizer
-    data = data_normalizer.normalize_data_format(data, 'MetaTrader5')
+    data = data_normalizer.normalize_data_format(data, "MetaTrader5")
     # Return the data
     return data
 
@@ -166,8 +158,11 @@ def get_historic_data_range(symbol, timeframe, date_from, date_to):
     """
     import pytz, calendar
     from datetime import datetime
+
     timezone = pytz.timezone("Etc/UTC")
-    utc_from = int(calendar.timegm(datetime(date_from.year, date_from.month, date_from.day, tzinfo=timezone).timetuple()))
+    utc_from = int(
+        calendar.timegm(datetime(date_from.year, date_from.month, date_from.day, tzinfo=timezone).timetuple())
+    )
     utc_to = int(calendar.timegm(datetime(date_to.year, date_to.month, date_to.day, 23, tzinfo=timezone).timetuple()))
     mt5_timeframe = convert_to_mt5_timeframe(timeframe)
     try:
@@ -179,16 +174,10 @@ def get_historic_data_range(symbol, timeframe, date_from, date_to):
         print("copy_rates_range Inputs: ", symbol, mt5_timeframe, utc_from, utc_to)
         raise Exception(f"No data returned for {symbol} between {date_from} and {date_to}. MT5 error: {error}")
     df = pandas.DataFrame(data)
-    df['time'] = pandas.to_datetime(df['time'], unit='s')
-    df = df.set_index('time')
-    df = df.rename(columns={
-        'open': 'Open',
-        'high': 'High',
-        'low': 'Low',
-        'close': 'Close',
-        'tick_volume': 'Volume'
-    })
-    return df[['Open', 'High', 'Low', 'Close', 'Volume']]
+    df["time"] = pandas.to_datetime(df["time"], unit="s")
+    df = df.set_index("time")
+    df = df.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close", "tick_volume": "Volume"})
+    return df[["Open", "High", "Low", "Close", "Volume"]]
 
 
 # Function to place an order on MetaTrader 5
@@ -197,8 +186,8 @@ def place_order(symbol, signal):
     Places a market order based on a signal dict with decision, entry, and exit.
     Stop loss is set at 10% against the position.
     """
-    decision = signal['decision']
-    if decision == 'hold':
+    decision = signal["decision"]
+    if decision == "hold":
         return None
 
     symbol_info = MetaTrader5.symbol_info(symbol)
@@ -208,10 +197,10 @@ def place_order(symbol, signal):
         MetaTrader5.symbol_select(symbol, True)
 
     lot = 0.1
-    price = MetaTrader5.symbol_info_tick(symbol).ask if decision == 'buy' else MetaTrader5.symbol_info_tick(symbol).bid
-    take_profit = signal['exit']
+    price = MetaTrader5.symbol_info_tick(symbol).ask if decision == "buy" else MetaTrader5.symbol_info_tick(symbol).bid
+    take_profit = signal["exit"]
 
-    if decision == 'buy':
+    if decision == "buy":
         order_type = MetaTrader5.ORDER_TYPE_BUY
         stop_loss = price * 0.90  # 10% below entry
     else:

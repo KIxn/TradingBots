@@ -15,19 +15,19 @@ async def on_ready():
     Function to send a message to the channel on trading bot start up
     """
     # Print a message to the console
-    print(f'Discord Bot up and running. We have logged in as {client.user}')
-    
-    
+    print(f"Discord Bot up and running. We have logged in as {client.user}")
+
+
 @client.event
 async def test_message():
     """
     Function to test the message sending functionality
     """
     # Send a message to the channel
-    await client.send_message('Alert: Testing the Discord bot')
+    await client.send_message("Alert: Testing the Discord bot")
     return True
-    
-    
+
+
 @client.event
 async def on_message(message):
     """
@@ -36,9 +36,9 @@ async def on_message(message):
     # Don't respond to ourselves
     if message.author == client.user:
         return False
-    
+
     # Check if the message starts with Alert:
-    if message.content.startswith('Alert:'):
+    if message.content.startswith("Alert:"):
         # Get the message content
         msg = message.content
         print(msg)
@@ -52,4 +52,3 @@ def start_discord_bot(token):
     # Start the Discord bot
     client.run(token)
     return True
-    
