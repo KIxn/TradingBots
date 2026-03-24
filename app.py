@@ -216,30 +216,49 @@ if __name__ == '__main__':
             symbol = streamlit.session_state['loop_symbol']
             timeframe = streamlit.session_state['loop_timeframe']
             strategy = streamlit.session_state['loop_strategy']
+            make_trades = streamlit.session_state.get('loop_make_trades') == 'Yes'
             iteration = 0
             while streamlit.session_state.running:
                 iteration += 1
                 try:
                     with live_status.status(f"🔄 Iteration {iteration}...", expanded=True) as status:
-                        status.write(f"📡 Fetching {symbol} on {timeframe}...")
-                        data = strategy_router.strategy_router(platform, symbol, timeframe, strategy)
-                        decision = data.get('decision', 'unknown').upper()
-                        status.write(f"✅ Signal: **{decision}** | Entry: {data.get('entry')} | Exit: {data.get('exit')}")
+                        status.write(f"📡 Fetching latest {symbol} candles on {timeframe}...")
+                        signal = strategy_router.strategy_router(platform, symbol, timeframe, strategy)
+                        decision = signal.get('decision', 'hold').upper()
+                        entry = signal.get('entry')
+                        exit_price = signal.get('exit')
+                        status.write(f"🧠 Strategy: **{strategy}** | Signal: **{decision}**")
                         status.update(label=f"Iteration {iteration} — {decision}", state="complete")
-                    live_result.write(data)
 
-                    if streamlit.session_state.get('loop_make_trades') == 'Yes' and data.get('decision') != 'hold':
-                        try:
-                            order_result = metatrader_interface.place_order(symbol, data)
-                            streamlit.success(f"✅ Order placed: {decision} {symbol} | Ticket: {order_result.order}")
-                        except Exception as order_err:
-                            import traceback
-                            streamlit.error(f"Order failed: {order_err}")
-                            streamlit.code(traceback.format_exc())
-                    elif data.get('decision') == 'hold':
-                        streamlit.info("⏸ HOLD — no order placed")
-                    else:
-                        streamlit.warning("⚠️ Make Trades is not Yes — signal only mode")
+                    # Order details panel
+                    with live_result.container():
+                        streamlit.markdown(f"### Iteration {iteration} — {decision}")
+                        col_a, col_b, col_c = streamlit.columns(3)
+                        col_a.metric("Signal", decision)
+                        col_b.metric("Entry Price", f"{entry:.5f}" if entry else "—")
+                        col_c.metric("Exit (TP)", f"{exit_price:.5f}" if exit_price else "—")
+
+                        if make_trades and decision != 'HOLD':
+                            # Compute order details for display
+                            import MetaTrader5
+                            tick = MetaTrader5.symbol_info_tick(symbol)
+                            price = tick.ask if decision == 'BUY' else tick.bid
+                            sl = price * 0.90 if decision == 'BUY' else price * 1.10
+                            col_d, col_e, col_f = streamlit.columns(3)
+                            col_d.metric("Order Price", f"{price:.5f}")
+                            col_e.metric("Stop Loss (10%)", f"{sl:.5f}")
+                            col_f.metric("Volume", "0.1 lots")
+                            try:
+                                order_result = metatrader_interface.place_order(symbol, signal)
+                                streamlit.success(f"✅ Order placed | Ticket: {order_result.order} | {decision} {symbol} @ {price:.5f} | SL: {sl:.5f} | TP: {exit_price:.5f}")
+                            except Exception as order_err:
+                                import traceback
+                                streamlit.error(f"Order failed: {order_err}")
+                                streamlit.code(traceback.format_exc())
+                        elif decision == 'HOLD':
+                            streamlit.info("⏸ HOLD — no order placed")
+                        else:
+                            streamlit.warning("⚠️ Make Trades is not Yes — signal only mode")
 
                 except Exception as e:
                     import traceback

@@ -9,7 +9,6 @@ class TestStrategy(BaseStrategy):
     """
 
     def init(self):
-        # No indicators to precompute — logic is purely price comparison
         pass
 
     def next(self):
@@ -31,3 +30,15 @@ class TestStrategy(BaseStrategy):
         else:
             self._signal_buy = False
             self._signal_sell = False
+
+    @classmethod
+    def get_live_signal(cls, df) -> dict:
+        prev_close = df['Close'].iloc[-2]
+        curr_close = df['Close'].iloc[-1]
+
+        if prev_close > curr_close:
+            return {'decision': 'buy', 'entry': curr_close * 1.01, 'exit': curr_close * 1.02}
+        elif prev_close < curr_close:
+            return {'decision': 'sell', 'entry': curr_close * 0.99, 'exit': curr_close * 0.98}
+        else:
+            return {'decision': 'hold', 'entry': None, 'exit': None}

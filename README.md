@@ -152,7 +152,7 @@ class MyStrategy(BaseStrategy):
         pass
 
     def next(self):
-        # Define buy/sell logic
+        # Define buy/sell logic for backtesting
         if some_condition:
             self._signal_buy = True
             self._signal_sell = False
@@ -164,6 +164,18 @@ class MyStrategy(BaseStrategy):
         else:
             self._signal_buy = False
             self._signal_sell = False
+
+    @classmethod
+    def get_live_signal(cls, df) -> dict:
+        # Define live trading logic using the latest OHLCV DataFrame
+        # df has columns: Open, High, Low, Close
+        close = df['Close'].iloc[-1]
+        if some_condition:
+            return {'decision': 'buy', 'entry': close * 1.01, 'exit': close * 1.02}
+        elif other_condition:
+            return {'decision': 'sell', 'entry': close * 0.99, 'exit': close * 0.98}
+        else:
+            return {'decision': 'hold', 'entry': None, 'exit': None}
 ```
 
 That's it. The strategy is **automatically discovered** and appears in the UI — no registration or router changes needed.
@@ -172,7 +184,7 @@ The class name is converted to the display name: `MyStrategy` → `"My Strategy"
 
 ### Strategy API
 
-Inside `init()` and `next()` you have access to:
+`init()` and `next()` are used by the **backtesting engine** (`backtesting.py`):
 
 | Attribute | Description |
 |---|---|
@@ -183,7 +195,14 @@ Inside `init()` and `next()` you have access to:
 | `self.position` | Current position info |
 | `self.position.close()` | Close current position |
 
-Set `self._signal_buy = True` or `self._signal_sell = True` in `next()` so `get_signal()` can extract the live signal correctly.
+`get_live_signal(cls, df)` is used by the **live trading loop**:
+
+| Parameter | Description |
+|---|---|
+| `df` | pandas DataFrame with `Open`, `High`, `Low`, `Close` columns |
+| returns | `{'decision': 'buy'/'sell'/'hold', 'entry': float/None, 'exit': float/None}` |
+
+Both must be implemented — `init`/`next` for backtesting, `get_live_signal` for live trading.
 
 ## File Structure
 

@@ -46,7 +46,7 @@ def get_strategy_names() -> list:
 
 def strategy_router(platform, symbol, timeframe, strategy_name):
     """
-    Runs the strategy on live data and returns a signal dict.
+    Fetches latest data and returns a live signal dict from the strategy.
     """
     if not platform:
         raise ValueError('The platform is None')
@@ -56,7 +56,6 @@ def strategy_router(platform, symbol, timeframe, strategy_name):
         raise ValueError('The timeframe is None')
 
     import helper_functions as helpers
-    from backtesting import Backtest
 
     strategy_class = get_strategy_class(strategy_name)
 
@@ -68,17 +67,4 @@ def strategy_router(platform, symbol, timeframe, strategy_name):
     if 'timestamp' in dataframe.columns:
         dataframe = dataframe.set_index('timestamp')
 
-    bt = Backtest(dataframe, strategy_class, cash=100_000, trade_on_close=True)
-    bt.run()
-
-    # Get live signal from last bar
-    strategy_instance = strategy_class()
-    strategy_instance._data = type('Data', (), {
-        'Close': dataframe['Close'].values,
-        'Open': dataframe['Open'].values,
-        'High': dataframe['High'].values,
-        'Low': dataframe['Low'].values,
-    })()
-    strategy_instance.init()
-    strategy_instance.next()
-    return strategy_instance.get_signal()
+    return strategy_class.get_live_signal(dataframe)
