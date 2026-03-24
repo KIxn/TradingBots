@@ -4,6 +4,6 @@ pandas
 python-dotenv
 discord
 streamlit
-MetaTrader5
 backtesting
 pytz
+MetaTrader5
