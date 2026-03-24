@@ -55,27 +55,11 @@ def get_timeframes(platform: str) -> list:
 # Function to get a list of strategies for a given platform
 def get_strategies(platform: str) -> list:
     """
-    Function to get a list of strategies for a given platform
+    Auto-discovers all strategies from the strategies/ package.
+    No JSON registration needed — just create a BaseStrategy subclass.
     """
-    # Create the list of strategies
-    strategies_list = []
-    # If the platform is MetaTrader 5
-    if platform == 'MetaTrader5':
-        # Read the strategies from the JSON file
-        with open('static_content/strategies.json', 'r') as file:
-            strategies = json.load(file)
-        # Iterate through the strategies
-        for strategy in strategies['strategies']:
-            # Get the list of platforms for the strategy
-            strategy_platforms = strategy['platforms']
-            # If the platform is supported
-            for platform in strategy_platforms:
-                if platform == 'MetaTrader5':
-                    # Get the list of strategies for MetaTrader 5
-                    strategies_list.append(strategy['name'])
-    else:
-        raise Exception("The platform is not supported")
-    return strategies_list
+    import strategy_router
+    return strategy_router.get_strategy_names()
 
 
 # Function to get the information for a given platform

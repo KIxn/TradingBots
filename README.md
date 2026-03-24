@@ -1,19 +1,16 @@
 # Trading Bot
 
-A modular Python trading bot with Streamlit web interface, supporting MetaTrader 5 and customizable trading strategies.
+A modular Python trading bot with Streamlit web interface, supporting MetaTrader 5 and customizable trading strategies with built-in backtesting.
 
 ## Overview
 
-This trading bot provides a complete algorithmic trading solution with:
-- **Web-based interface** using Streamlit for easy configuration
-- **MetaTrader 5 integration** for trading
-- **Modular strategy system** for easy customization
+- **Web-based interface** using Streamlit with Backtesting and Live Trading tabs
+- **MetaTrader 5 integration** for live trading and historical data
+- **Backtesting** via [backtesting.py](https://kernc.github.io/backtesting.py/) with stats and interactive charts
+- **Auto-discovered strategy system** — add a file to `strategies/`, no registration needed
 - **Discord integration** for real-time alerts
-- **Development container** for consistent environment setup
 
 ## Architecture
-
-### Core Components
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -23,26 +20,21 @@ This trading bot provides a complete algorithmic trading solution with:
          │                       │                       │
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Platform Info  │    │   Data Flow     │    │ Trading Signals │
-│ (helper_funcs)  │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ Trading Platform│    │ Market Data     │    │  Alert System   │
-│   (MetaTrader 5)│    │                 │    │   (Discord)     │
+│ Trading Platform│    │  Backtesting.py │    │  BaseStrategy   │
+│  (MetaTrader 5) │    │  (backtest tab) │    │  (base class)   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ### Key Files
 
-- **`app.py`** - Streamlit web interface for bot configuration
-- **`strategy_router.py`** - Routes trading requests to appropriate strategies
-- **`strategies/`** - Directory containing trading strategy implementations
-- **`helper_functions.py`** - Common utilities for data retrieval and platform management
-- **`metatrader_interface.py`** - MetaTrader 5 platform integration
-- **`discord_interaction.py`** - Discord bot for trading alerts
-- **`static_content/`** - Configuration files for strategies and timeframes
+- **`app.py`** - Streamlit UI with Backtesting and Live Trading tabs
+- **`strategy_router.py`** - Auto-discovers and routes strategies
+- **`strategies/base_strategy.py`** - Base class all strategies must extend
+- **`strategies/`** - Strategy implementations (auto-discovered)
+- **`helper_functions.py`** - Platform utilities and data retrieval
+- **`metatrader_interface.py`** - MetaTrader 5 integration and order execution
+- **`discord_interaction.py`** - Discord alerts
+- **`static_content/`** - Timeframe configuration
 
 ## Getting Started
 
@@ -88,14 +80,13 @@ MetaTrader 5 requires Windows, so on macOS you need to run it via [Wine](https:/
    ```
 
 2. **Configure environment** (create `.env` file):
-   ```bash
-   # MetaTrader 5 Credentials
+   ```env
    metatrader_username=your_username
    metatrader_password=your_password
    metatrader_server=your_server
-   metatrader_filepath=/path/to/metatrader5/terminal64.exe
-   
-   # Discord Bot Token (optional)
+   metatrader_filepath=C:\path\to\terminal64.exe
+
+   # Optional
    discord_key=your_discord_bot_token
    ```
 
@@ -106,200 +97,152 @@ MetaTrader 5 requires Windows, so on macOS you need to run it via [Wine](https:/
 
 4. **Open browser** to `http://localhost:8501`
 
-### Using the Trading Bot
+## Using the App
 
-1. **Platform Setup**:
-   - Select "MetaTrader 5" as trading platform
-   - Choose to use settings file or enter credentials manually
-   - Enter MetaTrader 5 login details
+### Platform Setup (top bar)
+- Select **Use Settings File** → Yes to load credentials from `.env`
+- Select **Trading Platform** → MetaTrader 5 to connect
+- Select **Make Trades** → Yes to enable live order execution
 
-2. **Trading Configuration**:
-   - Select symbol (e.g., EURUSD, GBPUSD)
-   - Choose timeframe (M1, H1, D1, etc.)
-   - Pick a strategy (currently "Test Strategy")
+### Backtesting Tab (default)
+1. Select symbol, timeframe, and strategy
+2. Pick a date range
+3. Click **Run Backtest**
+4. View key stats, full stats, trade log, and interactive chart
 
-3. **Get Trading Signals**:
-   - Click "Get Data" to analyze market data
-   - View buy/sell/hold signals with entry/exit prices
-   - Enable Discord alerts for real-time notifications
+### Live Trading Tab
+1. Select symbol, timeframe, and strategy
+2. Set the polling interval (seconds)
+3. Click **▶ Start Trading** — runs the strategy in a loop
+4. Click **⏹ Stop** to halt
 
 ## How It Works
 
-### 1. Data Flow
-The bot follows this sequence for each trading decision:
+### Strategy System
+
+All strategies extend `BaseStrategy` which itself extends `backtesting.Strategy`. This means **one implementation works for both backtesting and live trading**.
+
 ```
-User Input → Platform Connection → Data Retrieval → Strategy Analysis → Signal Generation
+User Input → Platform Connection → Data Retrieval → Strategy.init() → Strategy.next() → Signal / Order
 ```
 
-### 2. Strategy System
-Strategies are Python modules in the `strategies/` directory. Each strategy:
-- Receives historical market data
-- Analyzes using technical indicators
-- Returns a signal dictionary:
-  ```python
-  {
-      'decision': 'buy',  # 'buy', 'sell', or 'hold'
-      'entry': 1.2345,    # Entry price
-      'exit': 1.2456      # Exit price
-  }
-  ```
+For backtesting, `backtesting.py` calls `init()` and `next()` directly.
+For live trading, the router calls `init()` + `next()` on the latest candles and reads the signal via `get_signal()`.
 
-### 3. Example Strategy
-The included `test_strategy.py` provides a simple example:
+### Order Execution
+
+When **Make Trades** is Yes and the signal is not hold:
+- Market order placed immediately at current ask/bid
+- Take profit: strategy's exit price
+- Stop loss: 10% against the position
+- Volume: 0.1 lots (fixed)
+
+## Adding a Custom Strategy
+
+### Step 1: Create the strategy file
+
+Create `strategies/my_strategy.py`:
+
 ```python
-def run_strategy(platform, symbol, timeframe):
-    # Get market data
-    dataframe = helpers.get_data(platform, symbol, timeframe)
-    
-    # Simple price comparison strategy
-    current_close = dataframe.iloc[-1]['candle_close']
-    previous_close = dataframe.iloc[-2]['candle_close']
-    
-    if previous_close > current_close:
-        return {'decision': 'buy', 'entry': current_close * 1.01, 'exit': current_close * 1.02}
-    elif previous_close < current_close:
-        return {'decision': 'sell', 'entry': current_close * 0.99, 'exit': current_close * 0.98}
-    else:
-        return {'decision': 'hold', 'entry': None, 'exit': None}
+from strategies.base_strategy import BaseStrategy
+
+class MyStrategy(BaseStrategy):
+    def init(self):
+        # Precompute indicators here using self.I()
+        pass
+
+    def next(self):
+        # Define buy/sell logic
+        if some_condition:
+            self._signal_buy = True
+            self._signal_sell = False
+            self.buy()
+        elif other_condition:
+            self._signal_buy = False
+            self._signal_sell = True
+            self.sell()
+        else:
+            self._signal_buy = False
+            self._signal_sell = False
 ```
 
-### 4. Platform Integration
+That's it. The strategy is **automatically discovered** and appears in the UI — no registration or router changes needed.
 
-**MetaTrader 5**:
-- Connects via `MetaTrader5` Python package
-- Retrieves real-time and historical data
-- Supports all MetaTrader symbols and timeframes
+The class name is converted to the display name: `MyStrategy` → `"My Strategy"`.
 
-## Adding Custom Strategies
+### Strategy API
 
-### Step 1: Create Strategy File
-Create `strategies/my_custom_strategy.py`:
-```python
-import helper_functions as helpers
+Inside `init()` and `next()` you have access to:
 
-def run_strategy(platform, symbol, timeframe):
-    # Your strategy logic here
-    dataframe = helpers.get_data(platform, symbol, timeframe)
-    
-    # Analyze data and generate signal
-    signal = {
-        'decision': 'hold',
-        'entry': None,
-        'exit': None
-    }
-    
-    # Your analysis code...
-    
-    return signal
-```
+| Attribute | Description |
+|---|---|
+| `self.data.Close` | Array of close prices |
+| `self.data.Open/High/Low` | OHLC arrays |
+| `self.I(func, *args)` | Wrap an indicator for auto-plotting |
+| `self.buy()` / `self.sell()` | Place orders |
+| `self.position` | Current position info |
+| `self.position.close()` | Close current position |
 
-### Step 2: Register Strategy
-Add to `static_content/strategies.json`:
-```json
-{
-    "strategies": [
-        {
-            "name": "My Custom Strategy",
-            "description": "Description of your strategy",
-            "platforms": ["MetaTrader5"],
-            "id": 2
-        }
-    ]
-}
-```
+Set `self._signal_buy = True` or `self._signal_sell = True` in `next()` so `get_signal()` can extract the live signal correctly.
 
-### Step 3: Update Router
-Add handling in `strategy_router.py`:
-```python
-if strategy_name == 'My Custom Strategy':
-    signal = my_custom_strategy.run_strategy(
-        platform=platform,
-        symbol=symbol,
-        timeframe=timeframe
-    )
-```
+## File Structure
 
-## Development
-
-### Using Dev Container
-The project includes VS Code dev container configuration:
-- Pre-configured Python environment
-- All dependencies installed
-- Network access for trading platforms
-
-### File Structure
 ```
 trading-bot/
-├── app.py                    # Main Streamlit application
-├── strategy_router.py        # Strategy routing logic
-├── helper_functions.py       # Platform utilities
-├── metatrader_interface.py   # MT5 integration
-├── discord_interaction.py    # Discord alerts
-├── data_normalizer.py        # Data formatting
+├── app.py                        # Streamlit UI (Backtesting + Live Trading tabs)
+├── strategy_router.py            # Auto-discovers strategies, routes live signals
+├── helper_functions.py           # Platform utilities
+├── metatrader_interface.py       # MT5 integration + order execution
+├── discord_interaction.py        # Discord alerts
+├── data_normalizer.py            # Data formatting
 ├── strategies/
-│   └── test_strategy.py      # Example strategy
+│   ├── __init__.py
+│   ├── base_strategy.py          # BaseStrategy — extend this for all strategies
+│   └── test_strategy.py          # Example: 2-candle mean reversion
 ├── static_content/
-│   ├── strategies.json       # Strategy registry
-│   └── timeframes.json       # Supported timeframes
-├── .devcontainer/            # Development environment
-├── requirements.txt          # Dependencies
-└── README.md                 # This file
+│   └── timeframes.json           # Supported timeframes
+├── requirements.txt
+└── README.md
 ```
 
-### Dependencies
+## Dependencies
+
 - `streamlit` - Web interface
 - `MetaTrader5` - MT5 platform integration
-- `discord.py` - Discord bot for alerts
-- `pandas` - Data manipulation
+- `backtesting` - Backtesting framework
+- `discord.py` - Discord alerts
+- `pandas` / `numpy` - Data manipulation
 - `python-dotenv` - Environment management
 
 ## Configuration
 
 ### Environment Variables
-Set in `.env` file or directly in the UI:
-- `metatrader_username` - MT5 account username
-- `metatrader_password` - MT5 account password
-- `metatrader_server` - MT5 server address
-- `metatrader_filepath` - Path to MT5 terminal executable
-- `discord_key` - Discord bot token (optional)
+
+| Variable | Description |
+|---|---|
+| `metatrader_username` | MT5 account login number |
+| `metatrader_password` | MT5 account password |
+| `metatrader_server` | MT5 broker server name |
+| `metatrader_filepath` | Path to `terminal64.exe` |
+| `discord_key` | Discord bot token (optional) |
 
 ### Timeframes
-Supported timeframes are defined in `static_content/timeframes.json`:
-- Minutes: M1, M5, M15, M30
-- Hours: H1, H4, H8
-- Days: D1
-- Weeks: W1
-- Months: MN1
 
-## Testing
+Defined in `static_content/timeframes.json`: M1, M5, M15, M30, H1, H4, H8, D1, W1, MN1
 
-The included test strategy provides a basic example:
-- Compares current and previous close prices
-- Generates buy/sell signals with 1-2% profit targets
-- Demonstrates the strategy interface pattern
+## Roadmap
 
-Run the bot and select "Test Strategy" to see it in action.
-
-## Next Steps & Roadmap
-
-### Planned Features
-- [ ] Backtesting framework
-- [ ] Risk management system
-- [ ] Multiple strategy execution
-- [ ] Real-time trading execution
+### Planned
+- [ ] Risk management (position sizing relative to account balance)
+- [ ] Multiple simultaneous strategies
 - [ ] Performance analytics dashboard
-- [ ] More technical indicators (RSI, MACD, Bollinger Bands)
+- [ ] More built-in indicators (RSI, MACD, Bollinger Bands)
 
-### Integration Targets
-- [x] MetaTrader 5 (fully implemented)
-- [ ] Binance API
-- [ ] Coinbase API
-- [ ] Interactive Brokers
+### Integrations
+- [x] MetaTrader 5
 
 ---
 
 ## License
 
 This project is licensed under the terms included in the LICENSE file.
-
----

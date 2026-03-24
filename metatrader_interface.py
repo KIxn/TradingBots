@@ -3,6 +3,7 @@ import dotenv
 import MetaTrader5
 import pandas
 import data_normalizer
+import datetime
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -87,7 +88,7 @@ def get_my_symbols():
 
 
 # Function to get data from MetaTrader 5
-def get_historic_data(symbol, timeframe):
+def get_historic_data(symbol, timeframe, count=10):
     """
     Function to get data from MetaTrader 5
     """
@@ -95,7 +96,7 @@ def get_historic_data(symbol, timeframe):
     timeframe = convert_to_mt5_timeframe(timeframe)
     # Get the data
     try:
-        data = MetaTrader5.copy_rates_from_pos(symbol, timeframe, 0, 10)
+        data = MetaTrader5.copy_rates_from_pos(symbol, timeframe, 0, count)
     except Exception as exception:
         raise Exception(f"An exception occurred when getting the data for MetaTrader 5: {exception}")
     # Convert the data to a DataFrame
@@ -155,6 +156,39 @@ def convert_to_mt5_timeframe(timeframe: str):
         return MetaTrader5.TIMEFRAME_MN1
     else:
         raise Exception("The timeframe is not supported")
+
+
+# Function to get historical data between two dates
+def get_historic_data_range(symbol, timeframe, date_from, date_to):
+    """
+    Returns OHLCV DataFrame with columns Open/High/Low/Close/Volume
+    indexed by datetime — compatible with backtesting.py.
+    """
+    import pytz, calendar
+    from datetime import datetime
+    timezone = pytz.timezone("Etc/UTC")
+    utc_from = int(calendar.timegm(datetime(date_from.year, date_from.month, date_from.day, tzinfo=timezone).timetuple()))
+    utc_to = int(calendar.timegm(datetime(date_to.year, date_to.month, date_to.day, 23, tzinfo=timezone).timetuple()))
+    mt5_timeframe = convert_to_mt5_timeframe(timeframe)
+    try:
+        data = MetaTrader5.copy_rates_range(symbol, mt5_timeframe, utc_from, utc_to)
+    except Exception as exception:
+        raise Exception(f"Failed to fetch historical data: {exception}")
+    if data is None or len(data) == 0:
+        error = MetaTrader5.last_error()
+        print("copy_rates_range Inputs: ", symbol, mt5_timeframe, utc_from, utc_to)
+        raise Exception(f"No data returned for {symbol} between {date_from} and {date_to}. MT5 error: {error}")
+    df = pandas.DataFrame(data)
+    df['time'] = pandas.to_datetime(df['time'], unit='s')
+    df = df.set_index('time')
+    df = df.rename(columns={
+        'open': 'Open',
+        'high': 'High',
+        'low': 'Low',
+        'close': 'Close',
+        'tick_volume': 'Volume'
+    })
+    return df[['Open', 'High', 'Low', 'Close', 'Volume']]
 
 
 # Function to place an order on MetaTrader 5
