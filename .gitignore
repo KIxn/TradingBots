@@ -3,3 +3,5 @@
 .devcontainer/
 .venv/
 __pycache__/
+logs/
+.ruff_cache/

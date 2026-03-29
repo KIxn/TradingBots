@@ -35,6 +35,8 @@ A modular Python trading bot with Streamlit web interface, supporting MetaTrader
 - **`metatrader_interface.py`** - MetaTrader 5 integration and order execution
 - **`discord_interaction.py`** - Discord alerts
 - **`static_content/`** - Timeframe configuration
+- **`logging_config.py`** - Logging configuration and rotation
+- **`log_config.json`** - Logging settings (log level, rotation policy)
 
 ## Getting Started
 
@@ -214,12 +216,15 @@ trading-bot/
 ├── metatrader_interface.py       # MT5 integration + order execution
 ├── discord_interaction.py        # Discord alerts
 ├── data_normalizer.py            # Data formatting
+├── logging_config.py             # Logging configuration and rotation
+├── log_config.json               # Logging settings (log level, rotation policy)
 ├── strategies/
 │   ├── __init__.py
 │   ├── base_strategy.py          # BaseStrategy — extend this for all strategies
 │   └── test_strategy.py          # Example: 2-candle mean reversion
 ├── static_content/
 │   └── timeframes.json           # Supported timeframes
+├── logs/                         # Log files directory (auto-created)
 ├── requirements.txt
 └── README.md
 ```
@@ -232,6 +237,49 @@ trading-bot/
 - `discord.py` - Discord alerts
 - `pandas` / `numpy` - Data manipulation
 - `python-dotenv` - Environment management
+
+## Logging
+
+The application includes comprehensive logging for all MetaTrader5 API calls. Logs are stored in the `logs/` directory and include:
+
+### Log Files
+- **Location**: `logs/` directory in the project root
+- **Format**: `metatrader5_YYYYMMDD_HHMMSS.log`
+- **Content**: All API calls, inputs, outputs, errors, and execution details
+
+### Log Configuration
+- **Configuration File**: `log_config.json`
+- **Default Settings**: Logs are cleared on each app run (`"log_rotation": "app_run"`)
+- **Log Levels**: 
+  - **ERROR**: Critical failures that prevent operation
+  - **WARNING**: Non-critical issues that don't stop execution
+  - **INFO**: General operational information (default)
+  - **DEBUG**: Detailed API call tracing for troubleshooting
+- **Rotation Options**: `app_run`, `daily`, `weekly`, `monthly`
+
+### What Gets Logged
+- MetaTrader5 initialization and login attempts
+- Symbol retrieval requests and results
+- Historical data requests (inputs and outputs)
+- Order placement (signal, price, stop loss, take profit)
+- API errors and exceptions
+- Execution results and status codes
+
+### Configuration Example (`log_config.json`)
+```json
+{
+  "log_level": "INFO",
+  "log_rotation": "app_run",
+  "max_log_files": 10,
+  "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+  "date_format": "%Y-%m-%d %H:%M:%S"
+}
+```
+
+### Changing Log Settings
+1. Edit `log_config.json` to change log level or rotation policy
+2. Set `"log_rotation": "daily"` to keep daily logs instead of clearing on each run
+3. Set `"log_level": "DEBUG"` for detailed API call tracing
 
 ## Configuration
 

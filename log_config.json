@@ -1,0 +1,7 @@
+{
+  "log_level": "INFO",
+  "log_rotation": "app_run",
+  "max_log_files": 10,
+  "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+  "date_format": "%Y-%m-%d %H:%M:%S"
+}
